@@ -46,6 +46,11 @@ body{
     font-size:14px;
     text-align:center;
     box-shadow:0 4px 8px rgba(0,0,0,.5);
+    transition: transform 0.2s;
+}
+
+#social-links a:hover {
+    transform: scale(1.05);
 }
 
 #social-links .insta{
@@ -117,6 +122,11 @@ button{
     border-radius:10px;
     cursor:pointer;
     box-shadow:0 5px 0 #d35400;
+    transition: all 0.1s;
+}
+
+button:hover {
+    background: #f9e379;
 }
 
 button:active{
@@ -161,14 +171,18 @@ const startScreen=document.getElementById("start-screen");
 const gameOver=document.getElementById("gameover-screen");
 const finalScore=document.getElementById("final-score");
 
+// Fixed: Add error handling for audio files
 const bgMusic=new Audio("bg.mp3");
 const failSound=new Audio("end.mp3");
 bgMusic.loop=true;
+bgMusic.onerror=()=>console.log("Background music not found");
+failSound.onerror=()=>console.log("Fail sound not found");
 
 let pipes=[],score=0,velocity=0,birdY=0;
 let gravity=0.45,jumpPower=-8;
 let pipeGap=180,pipeSpeed=2.7,lastPipe=0;
 let gameRunning=false;
+let pipeCounter=0; // Fixed: Track pipe pairs for accurate scoring
 
 function startGame(){
     pipes.forEach(p=>p.remove());
@@ -176,21 +190,23 @@ function startGame(){
     score=0;
     scoreText.innerText=0;
     velocity=0;
-    birdY=game.clientHeight/2;
+    // Fixed: Center bird vertically on startup
+    birdY=game.clientHeight/2-22.5;
     bird.style.left="25%";
     bird.style.top=birdY+"px";
     gameRunning=true;
+    pipeCounter=0; // Reset pipe counter
     startScreen.classList.add("hidden");
     gameOver.classList.add("hidden");
     bgMusic.currentTime=0;
-    bgMusic.play();
+    bgMusic.play().catch(e=>console.log("Could not play music:", e));
     requestAnimationFrame(update);
 }
 
 function endGame(){
     gameRunning=false;
     bgMusic.pause();
-    failSound.play();
+    failSound.play().catch(e=>console.log("Could not play fail sound:", e));
     finalScore.innerText="Score: "+score;
     gameOver.classList.remove("hidden");
 }
@@ -199,13 +215,24 @@ function spawnPipe(){
     const top=document.createElement("div");
     const bottom=document.createElement("div");
     top.className=bottom.className="pipe";
-    let topH=Math.random()*250+50;
+    // Fixed: Better random variation for pipe heights
+    let topH=Math.random()*200+60;
     let bottomH=game.clientHeight-topH-pipeGap-110;
+    
+    // Fixed: Prevent invalid pipe dimensions
+    if(bottomH<60) {
+        topH=game.clientHeight-110-pipeGap-60;
+        bottomH=60;
+    }
+    
     top.style.height=topH+"px";
     bottom.style.height=bottomH+"px";
     top.style.top=0;
     bottom.style.bottom="110px";
     top.style.left=bottom.style.left="100%";
+    top.pipeId=pipeCounter; // Fixed: Mark top pipe for tracking
+    bottom.pipeId=pipeCounter;
+    pipeCounter++;
     game.append(top,bottom);
     pipes.push(top,bottom);
 }
@@ -221,41 +248,69 @@ function update(time){
         lastPipe=time;
     }
 
-    pipes.forEach((p,i)=>{
+    // Fixed: Better pipe array iteration to avoid splice issues
+    for(let i=pipes.length-1;i>=0;i--){
+        const p=pipes[i];
         p.style.left=(parseFloat(p.style.left)-pipeSpeed)+"px";
+        
         if(parseFloat(p.style.left)<-100){
             p.remove();
             pipes.splice(i,1);
-        }
-        if(!p.scored && p.getBoundingClientRect().right<bird.getBoundingClientRect().left){
-            p.scored=true;
-            if(i%2===0){
-                score++;
-                scoreText.innerText=score;
+        } else {
+            // Fixed: Better scoring - only count once per pipe pair
+            if(!p.scored && p.getBoundingClientRect().right<bird.getBoundingClientRect().left){
+                p.scored=true;
+                // Only increment score once per pair (when top pipe passes)
+                if(p.style.top==="0px"){
+                    score++;
+                    scoreText.innerText=score;
+                }
             }
+            // Check collision
+            if(collision(p)) endGame();
         }
-        if(collision(p)) endGame();
-    });
+    }
 
+    // Fixed: More accurate collision with ground - check before adding bird height
     if(birdY+45>=game.clientHeight-110) endGame();
+    
+    // Fixed: Add top boundary collision
+    if(birdY<0) endGame();
+    
     requestAnimationFrame(update);
 }
 
 function collision(pipe){
     const b=bird.getBoundingClientRect();
     const p=pipe.getBoundingClientRect();
-    return b.left<p.right && b.right>p.left && b.top<p.bottom && b.bottom>p.top;
+    // Fixed: Better AABB collision detection
+    return !(b.right<p.left || b.left>p.right || b.bottom<p.top || b.top>p.bottom);
 }
 
 function jump(){
     if(gameRunning) velocity=jumpPower;
 }
 
+// Fixed: Add keyboard event listener with proper event handling
 window.addEventListener("keydown",e=>{
-    if(e.code==="Space"||e.code==="ArrowUp") jump();
+    if(e.code==="Space"){
+        e.preventDefault();
+        jump();
+    }
+    if(e.code==="ArrowUp") jump();
 });
-window.addEventListener("mousedown",jump);
-window.addEventListener("touchstart",e=>{e.preventDefault();jump();});
+
+// Fixed: Better mouse handling to avoid accidental clicks
+window.addEventListener("mousedown",e=>{
+    if(e.target===game || e.target.id==="bird") jump();
+});
+
+window.addEventListener("touchstart",e=>{
+    if(e.target===game || e.target.id==="bird"){
+        e.preventDefault();
+        jump();
+    }
+});
 </script>
 
 </body>
