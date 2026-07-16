@@ -1,180 +1,94 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculator</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 30% 20%, #1a1f3d, #0b0c17 70%);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-  }
-  .calc {
-    width: 320px;
-    max-width: 92vw;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    backdrop-filter: blur(16px);
-    border-radius: 24px;
-    padding: 20px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-  }
-  .display {
-    text-align: right;
-    color: #fff;
-    padding: 20px 10px;
-    min-height: 90px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-  }
-  .display .prev {
-    font-size: 14px;
-    color: rgba(255,255,255,0.45);
-    min-height: 18px;
-    word-break: break-all;
-  }
-  .display .curr {
-    font-size: 38px;
-    font-weight: 600;
-    word-break: break-all;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-top: 10px;
-  }
-  button {
-    border: none;
-    border-radius: 14px;
-    padding: 18px 0;
-    font-size: 18px;
-    font-weight: 500;
-    cursor: pointer;
-    background: rgba(255,255,255,0.08);
-    color: #fff;
-    transition: transform 0.08s ease, background 0.2s;
-  }
-  button:active { transform: scale(0.94); }
-  .op {
-    background: rgba(123, 97, 255, 0.35);
-    color: #d7c9ff;
-  }
-  .equal {
-    background: linear-gradient(135deg, #7b61ff, #4f8cff);
-    grid-column: span 2;
-    color: #fff;
-  }
-  .clear, .del {
-    background: rgba(255, 99, 99, 0.2);
-    color: #ffb3b3;
-  }
-  .zero { grid-column: span 2; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video API Test Environment</title>
+    <!-- Tailwind CSS for instant styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: sans-serif; }
+    </style>
 </head>
-<body>
+<body class="p-8">
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4 text-green-400">API Test Environment 🚀</h1>
+        <p class="mb-8 text-gray-400">Testing Lovable Video Hosting API</p>
+        
+        <!-- Status Message -->
+        <div id="status" class="mb-6 px-4 py-3 bg-gray-800 rounded border border-gray-700 text-yellow-400 font-mono text-sm">
+            Fetching videos from API...
+        </div>
 
-<div class="calc">
-  <div class="display">
-    <div class="prev" id="prevOperand"></div>
-    <div class="curr" id="currOperand">0</div>
-  </div>
-  <div class="grid">
-    <button class="clear" onclick="clearAll()">AC</button>
-    <button class="del" onclick="deleteLast()">DEL</button>
-    <button class="op" onclick="chooseOperator('%')">%</button>
-    <button class="op" onclick="chooseOperator('÷')">÷</button>
+        <!-- Video Grid -->
+        <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Videos inject hone ke baad yahan aayenge -->
+        </div>
+    </div>
 
-    <button onclick="appendNumber('7')">7</button>
-    <button onclick="appendNumber('8')">8</button>
-    <button onclick="appendNumber('9')">9</button>
-    <button class="op" onclick="chooseOperator('×')">×</button>
+    <script>
+        async function fetchVideos() {
+            const apiUrl = 'https://id-preview--87591bdb-81dc-4979-98dc-13a9351e6935.lovable.app/api/public/videos';
+            const apiKey = 'vh_live_c2N9BSdLT-427m6aLx70WyXEvFe24OJB';
+            
+            const statusEl = document.getElementById('status');
+            const gridEl = document.getElementById('video-grid');
 
-    <button onclick="appendNumber('4')">4</button>
-    <button onclick="appendNumber('5')">5</button>
-    <button onclick="appendNumber('6')">6</button>
-    <button class="op" onclick="chooseOperator('-')">-</button>
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-    <button onclick="appendNumber('1')">1</button>
-    <button onclick="appendNumber('2')">2</button>
-    <button onclick="appendNumber('3')">3</button>
-    <button class="op" onclick="chooseOperator('+')">+</button>
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
 
-    <button class="zero" onclick="appendNumber('0')">0</button>
-    <button onclick="appendNumber('.')">.</button>
-    <button class="equal" onclick="calculate()">=</button>
-  </div>
-</div>
+                const data = await response.json();
+                console.log("Full API Response:", data); // Check console for structure
 
-<script>
-  let currOperand = '0';
-  let prevOperand = '';
-  let operator = null;
+                // Check if API returns an array directly or inside a property like data.videos
+                const videos = Array.isArray(data) ? data : (data.videos || []);
 
-  const currEl = document.getElementById('currOperand');
-  const prevEl = document.getElementById('prevOperand');
+                if (videos.length === 0) {
+                    statusEl.innerHTML = '<span class="text-blue-400">API Connected! But no videos found. Upload a video to the hosting platform first.</span>';
+                    return;
+                }
 
-  function updateDisplay() {
-    currEl.textContent = currOperand;
-    prevEl.textContent = prevOperand ? `${prevOperand} ${operator}` : '';
-  }
+                statusEl.innerHTML = `<span class="text-green-400">Success! Loaded ${videos.length} video(s) successfully.</span>`;
 
-  function appendNumber(num) {
-    if (num === '.' && currOperand.includes('.')) return;
-    if (currOperand === '0' && num !== '.') currOperand = num;
-    else currOperand += num;
-    updateDisplay();
-  }
+                // Render videos dynamically
+                videos.forEach((vid, index) => {
+                    // Adjust these variables based on what key names the API actually returns
+                    const videoUrl = vid.video_url || vid.url || vid.src || '';
+                    const title = vid.title || `Test Video ${index + 1}`;
 
-  function chooseOperator(op) {
-    if (currOperand === '') return;
-    if (prevOperand !== '') calculate();
-    operator = op;
-    prevOperand = currOperand;
-    currOperand = '';
-    updateDisplay();
-  }
+                    if(videoUrl) {
+                        const card = document.createElement('div');
+                        card.className = 'bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 flex flex-col';
+                        
+                        card.innerHTML = `
+                            <h2 class="text-lg mb-3 font-semibold text-gray-200 truncate">${title}</h2>
+                            <video controls class="w-full rounded bg-black flex-grow" preload="metadata">
+                                <source src="${videoUrl}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        `;
+                        gridEl.appendChild(card);
+                    }
+                });
 
-  function calculate() {
-    let result;
-    const prev = parseFloat(prevOperand);
-    const curr = parseFloat(currOperand);
-    if (isNaN(prev) || isNaN(curr)) return;
+            } catch (error) {
+                console.error("Fetch error:", error);
+                statusEl.innerHTML = `<span class="text-red-500">Error fetching data: ${error.message}</span>`;
+            }
+        }
 
-    switch (operator) {
-      case '+': result = prev + curr; break;
-      case '-': result = prev - curr; break;
-      case '×': result = prev * curr; break;
-      case '÷': result = curr === 0 ? 'Error' : prev / curr; break;
-      case '%': result = prev % curr; break;
-      default: return;
-    }
-
-    currOperand = result.toString();
-    operator = null;
-    prevOperand = '';
-    updateDisplay();
-  }
-
-  function clearAll() {
-    currOperand = '0';
-    prevOperand = '';
-    operator = null;
-    updateDisplay();
-  }
-
-  function deleteLast() {
-    currOperand = currOperand.toString().slice(0, -1);
-    if (currOperand === '') currOperand = '0';
-    updateDisplay();
-  }
-</script>
-
+        // Run function on load
+        fetchVideos();
+    </script>
 </body>
 </html>
