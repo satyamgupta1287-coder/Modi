@@ -43,67 +43,83 @@
         </form>
     </div>
 
-    <script>
+        <script>
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Page refresh hone se rokne ke liye
+            e.preventDefault(); 
             
-            const title = document.getElementById('title').value;
-            const description = document.getElementById('description').value;
+            const titleVal = document.getElementById('title').value;
+            const descVal = document.getElementById('description').value;
             const fileInput = document.getElementById('videoFile');
             const uploadBtn = document.getElementById('uploadBtn');
             const statusBox = document.getElementById('statusBox');
 
             if (fileInput.files.length === 0) return;
+            const file = fileInput.files[0];
 
-            // Form data prepare karna (File bhejne ke liye FormData zaruri hai)
-            const formData = new FormData();
-            formData.append('video', fileInput.files[0]); // Dhyan dena: API me field name 'video' ya 'file' ho sakta hai
-            formData.append('title', title);
-            formData.append('description', description);
+            // API Details
+            const API = "https://stream-sweetly.lovable.app";
+            const KEY = "vh_live_c2N9BSdLT-427m6aLx70WyXEvFe24OJB";
 
-            // UI update: Loading state
+            // UI Loading State
             uploadBtn.innerText = "Uploading... Please wait ⏳";
             uploadBtn.disabled = true;
             uploadBtn.classList.add('opacity-50', 'cursor-not-allowed');
             statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-yellow-900 border-yellow-700 text-yellow-300 block";
-            statusBox.innerText = "Sending payload to server... Do not close this tab.";
-
+            
             try {
-                // Lovable ka Upload API endpoint (Check with Lovable if it's different)
-                const apiUrl = 'https://stream-sweetly.lovable.app/api/public/videos'; 
+                // Step 1: Signed Upload URL मंगाना
+                statusBox.innerText = "Step 1: Requesting secure upload URL...";
+                const r1 = await fetch(`${API}/api/public/videos/upload-url`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-API-Key": KEY },
+                    body: JSON.stringify({ filename: file.name }),
+                });
                 
-                const response = await fetch(apiUrl, {
-                    method: 'POST', // Upload ke liye GET nahi POST lagta hai
-                    headers: {
-                        'X-API-Key': 'vh_live_c2N9BSdLT-427m6aLx70WyXEvFe24OJB'
-                        // Note: FormData ke sath 'Content-Type' auto-set hota hai, manually nahi dalna.
-                    },
-                    body: formData
+                if (!r1.ok) throw new Error("Failed to get upload URL");
+                const { upload_url, storage_path } = await r1.json();
+
+                // Step 2: Direct File Upload (Supabase Storage में)
+                statusBox.innerText = "Step 2: Uploading video directly to storage...";
+                const r2 = await fetch(upload_url, {
+                    method: "PUT",
+                    headers: { "Content-Type": file.type },
+                    body: file, // Yahan direct file ja rahi hai, FormData nahi
                 });
 
-                const result = await response.json();
+                if (!r2.ok) throw new Error("Failed to upload video to storage bucket");
 
-                if (!response.ok) {
-                    throw new Error(result.error || `Server returned ${response.status}`);
-                }
+                // Step 3: Metadata (Title, Desc) Database में Save करना
+                statusBox.innerText = "Step 3: Saving video details to database...";
+                const r3 = await fetch(`${API}/api/public/videos`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-API-Key": KEY },
+                    body: JSON.stringify({
+                        title: titleVal,
+                        description: descVal,
+                        tag: "AstraCampus", 
+                        storage_path: storage_path,
+                        size_bytes: file.size,
+                    }),
+                });
+
+                if (!r3.ok) throw new Error("Failed to save video metadata");
 
                 // Success UI
                 statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-green-900 border-green-700 text-green-300 block";
-                statusBox.innerText = "✅ Upload Successful! Video is now live.";
+                statusBox.innerText = "✅ Upload Successful! Video is now live on AstraCampus.";
                 document.getElementById('uploadForm').reset();
 
             } catch (error) {
                 console.error("Upload Failed:", error);
-                // Error UI
                 statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-red-900 border-red-700 text-red-300 block";
                 statusBox.innerText = `❌ Error: ${error.message}`;
             } finally {
-                // Reset Button
                 uploadBtn.innerText = "Start Upload ⬆️";
                 uploadBtn.disabled = false;
                 uploadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         });
     </script>
+
 </body>
 </html>
