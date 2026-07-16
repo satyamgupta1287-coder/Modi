@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstraCampus - Admin Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: sans-serif; }
+    </style>
+</head>
+<body class="p-8 flex items-center justify-center min-h-screen">
+    
+    <div class="max-w-xl w-full bg-gray-900 border border-gray-800 p-8 rounded-2xl shadow-2xl">
+        <h1 class="text-2xl font-bold mb-2 text-blue-400">Upload New Lecture 🚀</h1>
+        <p class="mb-6 text-gray-400 text-sm">Upload video directly to AstraCampus Server</p>
+        
+        <form id="uploadForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Lecture Title</label>
+                <input type="text" id="title" placeholder="e.g. Physics Chapter 1" required
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                <textarea id="description" placeholder="Brief details about the lecture..." rows="3"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Select Video (MP4)</label>
+                <input type="file" id="videoFile" accept="video/*" required
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600">
+            </div>
+
+            <div id="statusBox" class="hidden px-4 py-3 rounded border font-mono text-sm"></div>
+
+            <button type="submit" id="uploadBtn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                Start Upload ⬆️
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Page refresh hone se rokne ke liye
+            
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const fileInput = document.getElementById('videoFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const statusBox = document.getElementById('statusBox');
+
+            if (fileInput.files.length === 0) return;
+
+            // Form data prepare karna (File bhejne ke liye FormData zaruri hai)
+            const formData = new FormData();
+            formData.append('video', fileInput.files[0]); // Dhyan dena: API me field name 'video' ya 'file' ho sakta hai
+            formData.append('title', title);
+            formData.append('description', description);
+
+            // UI update: Loading state
+            uploadBtn.innerText = "Uploading... Please wait ⏳";
+            uploadBtn.disabled = true;
+            uploadBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-yellow-900 border-yellow-700 text-yellow-300 block";
+            statusBox.innerText = "Sending payload to server... Do not close this tab.";
+
+            try {
+                // Lovable ka Upload API endpoint (Check with Lovable if it's different)
+                const apiUrl = 'https://stream-sweetly.lovable.app/api/public/videos'; 
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST', // Upload ke liye GET nahi POST lagta hai
+                    headers: {
+                        'X-API-Key': 'vh_live_c2N9BSdLT-427m6aLx70WyXEvFe24OJB'
+                        // Note: FormData ke sath 'Content-Type' auto-set hota hai, manually nahi dalna.
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || `Server returned ${response.status}`);
+                }
+
+                // Success UI
+                statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-green-900 border-green-700 text-green-300 block";
+                statusBox.innerText = "✅ Upload Successful! Video is now live.";
+                document.getElementById('uploadForm').reset();
+
+            } catch (error) {
+                console.error("Upload Failed:", error);
+                // Error UI
+                statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-red-900 border-red-700 text-red-300 block";
+                statusBox.innerText = `❌ Error: ${error.message}`;
+            } finally {
+                // Reset Button
+                uploadBtn.innerText = "Start Upload ⬆️";
+                uploadBtn.disabled = false;
+                uploadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>
