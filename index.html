@@ -3,37 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video API Test Environment</title>
-    <!-- Tailwind CSS for instant styling -->
+    <title>AstraCampus Premium Video Player</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <style>
         body { background-color: #0f172a; color: white; font-family: sans-serif; }
+        /* Player को डार्क और प्रीमियम लुक देने के लिए थोड़ा कस्टम रंग */
+        .plyr--video { borderRadius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
+        .plyr__control--overlaid { background: #22c55e !important; } /* Green play button */
+        .plyr--full-ui input[type=range] { color: #22c55e !important; }
     </style>
 </head>
 <body class="p-8">
-    <div class="max-w-5xl mx-auto">
-        <h1 class="text-3xl font-bold mb-4 text-green-400">API Test Environment 🚀</h1>
-        <p class="mb-8 text-gray-400">Testing Lovable Video Hosting API</p>
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2 text-green-400">AstraCampus Smart Player 🎓</h1>
+        <p class="mb-8 text-gray-400 text-sm">Testing Premium Video Infrastructure with Speed Controls</p>
         
-        <!-- Status Message -->
         <div id="status" class="mb-6 px-4 py-3 bg-gray-800 rounded border border-gray-700 text-yellow-400 font-mono text-sm">
-            Fetching videos from API...
+            Connecting to secure video stream...
         </div>
 
-        <!-- Video Grid -->
-        <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Videos inject hone ke baad yahan aayenge -->
+        <div id="classroom-container" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 shadow-2xl">
+            <div class="w-full mb-4">
+                <video id="player" playsinline controls data-poster="">
+                    <source id="video-source" src="" type="video/mp4" />
+                </video>
+            </div>
+            <div class="mt-4">
+                <span class="bg-green-500/10 text-green-400 text-xs px-2.5 py-1 rounded-full font-medium border border-green-500/20">LIVE / RECORDED</span>
+                <h2 id="lecture-title" class="text-xl font-bold mt-3 text-gray-100">Loading Lecture Title...</h2>
+                <p id="lecture-desc" class="text-sm text-gray-400 mt-1">Loading description...</p>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
     <script>
-        async function fetchVideos() {
-            // Naya Production URL aur tumhari API Key
+        async function loadPremiumClassroom() {
             const apiUrl = 'https://stream-sweetly.lovable.app/api/public/videos'; 
             const apiKey = 'vh_live_c2N9BSdLT-427m6aLx70WyXEvFe24OJB';
             
             const statusEl = document.getElementById('status');
-            const gridEl = document.getElementById('video-grid');
+            const classroomContainer = document.getElementById('classroom-container');
+            const videoSource = document.getElementById('video-source');
+            const videoPlayerElement = document.getElementById('player');
+            const lectureTitle = document.getElementById('lecture-title');
+            const lectureDesc = document.getElementById('lecture-desc');
 
             try {
                 const response = await fetch(apiUrl, {
@@ -44,54 +59,59 @@
                     }
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP Error! Status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`Status: ${response.status}`);
 
                 const data = await response.json();
-                console.log("Full API Response: 🚀", data); 
-
-                // Tumhare Termux data ke hisaab se videos ka array
                 const videos = data.videos || [];
 
                 if (videos.length === 0) {
-                    statusEl.innerHTML = '<span class="text-blue-400">API Connected! But no videos found.</span>';
+                    statusEl.innerHTML = '❌ No active lectures found in the database.';
                     return;
                 }
 
-                statusEl.innerHTML = `<span class="text-green-400">Success! Loaded ${videos.length} video(s) successfully. 🔥</span>`;
+                // Pehla video utha rahe hain classroom ke liye
+                const activeLecture = videos[0]; 
+                
+                if (activeLecture.stream_url) {
+                    // Inject Video and Info
+                    videoSource.src = activeLecture.stream_url;
+                    lectureTitle.innerText = activeLecture.title || 'Untitled Lecture';
+                    lectureDesc.innerText = activeLecture.description || 'No description provided for this batch.';
+                    
+                    // Video load mandatory step
+                    videoPlayerElement.load();
+                    
+                    // Status update aur UI show karna
+                    statusEl.className = "hidden"; // Hide status since everything is good
+                    classroomContainer.classList.remove('hidden');
 
-                // Render videos dynamically
-                videos.forEach((vid) => {
-                    // Supabase se aaya hua actual video link
-                    const videoUrl = vid.stream_url; 
-                    const title = vid.title || `Video ${vid.id}`;
-                    const description = vid.description || '';
-
-                    if(videoUrl) {
-                        const card = document.createElement('div');
-                        card.className = 'bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 flex flex-col';
-                        
-                        card.innerHTML = `
-                            <h2 class="text-lg mb-1 font-semibold text-gray-200 truncate">${title}</h2>
-                            <p class="text-xs text-gray-400 mb-3">${description}</p>
-                            <video controls class="w-full rounded bg-black flex-grow" preload="metadata">
-                                <source src="${videoUrl}" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                        `;
-                        gridEl.appendChild(card);
-                    }
-                });
+                    // Initialize Premium Plyr Player with PW-like features
+                    const player = new Plyr('#player', {
+                        controls: [
+                            'play-large',    // Center me bada play button
+                            'play',          // Bottom play/pause
+                            'progress',      // Seek bar
+                            'current-time',  // Current time
+                            'duration',      // Total time
+                            'mute',          // Mute control
+                            'volume',        // Volume slider
+                            'settings',      // Speed changer settings icon
+                            'pip',           // Picture-in-picture mode
+                            'fullscreen'     // Fullscreen button
+                        ],
+                        settings: ['speed', 'quality'], // Speed Option active
+                        speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] } // 0.5x se 2x speed controls
+                    });
+                }
 
             } catch (error) {
-                console.error("Fetch error:", error);
-                statusEl.innerHTML = `<span class="text-red-500">Error fetching data: ${error.message}</span>`;
+                console.error("Player Error:", error);
+                statusEl.innerHTML = `<span class="text-red-500">Classroom Connection Failed: ${error.message}</span>`;
             }
         }
 
-        // Script run karte hi function call
-        fetchVideos();
+        // Run Setup
+        loadPremiumClassroom();
     </script>
 </body>
 </html>
