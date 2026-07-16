@@ -43,7 +43,7 @@
         </form>
     </div>
 
-        <script>
+            <script>
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault(); 
             
@@ -67,42 +67,48 @@
             statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-yellow-900 border-yellow-700 text-yellow-300 block";
             
             try {
-                // Step 1: Signed Upload URL मंगाना
-                statusBox.innerText = "Step 1: Requesting secure upload URL...";
-                const r1 = await fetch(`${API}/api/public/videos/upload-url`, {
+                // Step 1: Upload file directly to API (CORS is open here)
+                statusBox.innerText = "Step 1: Uploading video file to server...";
+                
+                const r1 = await fetch(`${API}/api/public/videos/upload?filename=${encodeURIComponent(file.name)}`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "X-API-Key": KEY },
-                    body: JSON.stringify({ filename: file.name }),
+                    headers: { 
+                        "X-API-Key": KEY, 
+                        "Content-Type": file.type 
+                    },
+                    body: file
                 });
                 
-                if (!r1.ok) throw new Error("Failed to get upload URL");
-                const { upload_url, storage_path } = await r1.json();
+                if (!r1.ok) {
+                    const errText = await r1.text();
+                    throw new Error(`Upload Failed: ${errText}`);
+                }
+                
+                const uploadRes = await r1.json();
+                const storagePath = uploadRes.storage_path;
 
-                // Step 2: Direct File Upload (Supabase Storage में)
-                statusBox.innerText = "Step 2: Uploading video directly to storage...";
-                const r2 = await fetch(upload_url, {
-                    method: "PUT",
-                    headers: { "Content-Type": file.type },
-                    body: file, // Yahan direct file ja rahi hai, FormData nahi
-                });
-
-                if (!r2.ok) throw new Error("Failed to upload video to storage bucket");
-
-                // Step 3: Metadata (Title, Desc) Database में Save करना
-                statusBox.innerText = "Step 3: Saving video details to database...";
-                const r3 = await fetch(`${API}/api/public/videos`, {
+                // Step 2: Register video details in database
+                statusBox.innerText = "Step 2: Saving video details to database...";
+                
+                const r2 = await fetch(`${API}/api/public/videos`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "X-API-Key": KEY },
-                    body: JSON.stringify({
-                        title: titleVal,
+                    headers: { 
+                        "X-API-Key": KEY, 
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({ 
+                        title: titleVal, 
                         description: descVal,
-                        tag: "AstraCampus", 
-                        storage_path: storage_path,
-                        size_bytes: file.size,
+                        tag: "AstraCampus",
+                        storage_path: storagePath,
+                        size_bytes: file.size
                     }),
                 });
 
-                if (!r3.ok) throw new Error("Failed to save video metadata");
+                if (!r2.ok) {
+                    const errText = await r2.text();
+                    throw new Error(`Database Error: ${errText}`);
+                }
 
                 // Success UI
                 statusBox.className = "px-4 py-3 rounded border font-mono text-sm bg-green-900 border-green-700 text-green-300 block";
@@ -120,6 +126,7 @@
             }
         });
     </script>
+
 
 </body>
 </html>
